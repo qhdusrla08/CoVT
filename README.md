@@ -20,9 +20,9 @@
   <b>
     <a href="https://wakals.github.io/" target="_blank">Yiming Qin</a><sup>1</sup>,
     <a href="https://github.com/David-BominWei" target="_blank">Bomin Wei</a><sup>2</sup>,
-     <a href="https://github.com/David-BominWei" target="_blank">Jiaxin Ge</a><sup>1</sup>,
-      <a href="https://github.com/David-BominWei" target="_blank">Konstantinos Kallidromitis</a><sup>3</sup>,<br>
-       <a href="https://github.com/David-BominWei" target="_blank">Stephanie Fu</a><sup>1</sup>,
+     <a href="https://gejiaxin.org/" target="_blank">Jiaxin Ge</a><sup>1</sup>,
+      <a href="https://tech-ai.panasonic.com/en/researcher_introduction/048/" target="_blank">Konstantinos Kallidromitis</a><sup>3</sup>,<br>
+       <a href="https://stephanie-fu.github.io/" target="_blank">Stephanie Fu</a><sup>1</sup>,
     <a href="https://people.eecs.berkeley.edu/~trevor/" target="_blank">Trevor Darrell</a><sup>1</sup>,
     <a href="https://people.eecs.berkeley.edu/~xdwang/" target="_blank">XuDong Wang</a><sup>1*</sup>
   </b><br>
@@ -137,6 +137,7 @@ A collection of CoVT models on Hugging Face with benchmark performance:
 - [x] Release our model weights on Hugging Face.
 - [x] Release the evaluation code.
 - [x] Release the Gradio demo code.
+- [ ] Release the dataset.
 - [ ] Support huggingface demo.
 - [ ] Release the training code.
 - [ ] Support more VLMs as the base models.
