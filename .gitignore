@@ -205,3 +205,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+/train/src/anchors/*/ckpt/*
+/train/output/
+/train/scripts/*backup*

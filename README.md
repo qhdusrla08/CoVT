@@ -10,7 +10,7 @@
   </h4>
 
   [![Arixv](https://img.shields.io/badge/arxiv-A42C25?style=for-the-badge&logo=arxiv&logoColor=white)](https://link_to_paper.html/)
-  [![Hugging Face Collection](https://img.shields.io/badge/HF_Models-fcd022?style=for-the-badge&logo=huggingface&logoColor=000)](https://huggingface.co/collections/Wakals/covt-chain-of-visual-thought)
+  [![Hugging Face Collection](https://img.shields.io/badge/HuggingFace-fcd022?style=for-the-badge&logo=huggingface&logoColor=000)](https://huggingface.co/collections/Wakals/covt-chain-of-visual-thought)
   [![Project Page](https://img.shields.io/badge/Project_Page-00CED1?style=for-the-badge&logoColor=white&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMCAyMHYtNmg0djZoNXYtOGgzTDEyIDMgMiAxMmgzdjh6Ii8+PC9zdmc+)](https://wakalsprojectpage.github.io/comt-website/)
 
 </div>
@@ -111,13 +111,32 @@ Vision–Language Models (VLMs) excel at reasoning in linguistic space but strug
 
 ### Evaluation
 
-To ensure consistency and reproducibility, we use **VLMEvalKit** as the framework for evaluating models. In our repository, we have forked a copy of VLMEvalKit. You can have a quick start by following this [instruction](docs/Eval.md).
+To ensure consistency and reproducibility, we use **VLMEvalKit** as the framework for evaluating models. In our repository, we have forked a copy of [VLMEvalKit](https://github.com/open-compass/VLMEvalKit). You can have a quick start by following this [instruction](docs/Eval.md).
 
 ### Gradio Demo
 
 We provid an interactive demo built with [Gradio](https://github.com/gradio-app/gradio), showcasing a conversational interface powered by the CoVT VLM. The demo allows users to upload images, ask questions, and interact with the model in real time through a simple web UI. You can have a quick start following [here](docs/Demo.md).
 
 ![Gradio Demo Image](assets/gradio_demo.png)
+
+### Training CoVT
+
+Our training data is released [here](https://huggingface.co/datasets/Wakals/CoVT-Dataset)!
+
+<details>
+<summary><strong>Dataset Composition</strong></summary>
+
+<br>
+
+![Data Image](assets/data.png)
+
+> CoVT dataset utilizes some subsets of LLaVA-OneVision, and merges the filtered TallyQA dataset and ADE20K-Depth from Aurora.
+
+<br>
+</details>
+
+
+To reproduce our method, please follow [this instruction](docs/Train.md) and start training CoVT! 🍻
 
 ## 🤗 Model Zoo
 

@@ -7,9 +7,7 @@
 
 ```bash
 cd VLMEvalKit
-pip install -e .
-pip install datasets scikit-learn
-pip install flash-attn==2.5.2 --no-build-isolation
+bash install_eval.sh
 ```
 
 **Setup Keys.**
