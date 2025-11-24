@@ -5,7 +5,7 @@
     Chain-of-Visual-Thought: Teaching VLMs to See and Think Better with Continuous Visual Tokens
   </h1>
 
-  <h4 style="margin: 15px 0; color:rgb(31, 148, 243);">
+  <h4 style="margin: 15px 0; color:rgb(50, 151, 234);">
     ⭐️ CoVT enriches VLMs’ vision-centric reasoning capabilities. ⭐️
   </h4>
 
@@ -46,11 +46,11 @@
 
 ## 🔥 News
 
-[2025-11-23] 🥃 Released the training data and code. Give it a shot!
+[2025-11-24] 🥃 Released the (training data)[https://huggingface.co/datasets/Wakals/CoVT-Dataset] and code. Give it a shot!
 
-[2025-11-22] ⭐️ The evaluation and Gradio demo are available NOW!
+[2025-11-24] ⭐️ The evaluation and Gradio demo are available NOW!
 
-[2025-11-21] 🤗 Our finetuned weights are available. [Check it here!](https://huggingface.co/collections/Wakals/covt-chain-of-visual-thought)
+[2025-11-24] 🤗 Our finetuned weights are available. [Check it here!](https://huggingface.co/collections/Wakals/covt-chain-of-visual-thought)
 
 ## 📑 Table of Contents
 
@@ -58,6 +58,7 @@
 - [🚀 Quick Start](#-quick-start)
 - [🤗 Model Zoo](#-model-zoo)
 - [🏖️ TODO](#-todo)
+- [🪪 License](#-license)
 - [📮 Contact](#-contact)
 
 ## 👀 Overview
@@ -164,6 +165,10 @@ A collection of CoVT models on Hugging Face with benchmark performance:
 - [ ] Support huggingface demo.
 - [ ] Support more VLMs as the base models.
 
+## 🪪 License
+
+The majority of CoVT is licensed under the Apache License, however portions of the project are available under their own license terms: Qwen series, SAM, Depth Anything v2, and DINOv2 are licensed under Apache, PIDINet are licensed under their own license; If you later add other third party code, please keep this license info updated, and please let us know if that component is licensed under something other than Apache, CC-BY-NC, MIT, or CC0.
+
 ## 📮 Contact
 
 For feedback, or collaboration opportunities, feel free to reach out!
@@ -172,9 +177,10 @@ For general questions, feel free to drop us an email at ymk4474@gmail.com or xdw
 
 If you're running into code or implementation issues, the best way is to open an issue right here in the repo (highly recommended!) — chances are your question might help someone else too. 😊
 
-<!-- ## Citation
+## Citation
 
 If you use this work in your research, please cite:
 
 ```
-``` -->
+coming soon...
+```
