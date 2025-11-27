@@ -46,7 +46,7 @@
 
 ## 🔥 News
 
-[2025-11-24] 🥃 Released the (training data)[https://huggingface.co/datasets/Wakals/CoVT-Dataset] and code. Give it a shot!
+[2025-11-24] 🥃 Released the [training data](https://huggingface.co/datasets/Wakals/CoVT-Dataset) and code. Give it a shot!
 
 [2025-11-24] ⭐️ The evaluation and Gradio demo are available NOW!
 
