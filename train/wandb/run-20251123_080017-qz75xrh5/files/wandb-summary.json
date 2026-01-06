@@ -1,1 +1,0 @@
-{"depth_loss": 1.4048129320144653, "_timestamp": 1763884843.7395997, "_runtime": 25.829585790634155, "_step": 6, "train/loss": 4.2288, "train/grad_norm": 605.2949861346273, "train/learning_rate": 3.272542485937369e-05, "train/epoch": 1.3490846460676431e-05, "train/global_step": 3}
