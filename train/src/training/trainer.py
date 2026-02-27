@@ -1,5 +1,14 @@
 import os
 import torch
+
+import torch
+import torch.nn as nn
+# [Patch] transformers 최신 버전 호환성 패치
+try:
+    from transformers.trainer import ALL_LAYERNORM_LAYERS
+except ImportError:
+    ALL_LAYERNORM_LAYERS = [nn.LayerNorm]
+
 import torch.nn as nn
 from deepspeed.utils import safe_get_full_grad
 
@@ -7,7 +16,7 @@ from transformers import Trainer, TrainerCallback
 from transformers.trainer import (
     is_sagemaker_mp_enabled,
     get_parameter_names,
-    ALL_LAYERNORM_LAYERS,
+    
     is_peft_available,
     WEIGHTS_NAME,
     TRAINING_ARGS_NAME,
@@ -63,7 +72,7 @@ class QwenTrainer(Trainer):
         opt_model = self.model
 
         if self.optimizer is None:
-            decay_parameters = get_parameter_names(opt_model, ALL_LAYERNORM_LAYERS)
+            decay_parameters = get_parameter_names(opt_model)
             projection_parameters = [name for name in decay_parameters if ("_projection" in name or "query_vectors" in name or "cross_attention" in name)]
             decay_parameters = [name for name in decay_parameters if "bias" not in name]
             lr_mapper = {}

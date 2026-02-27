@@ -1,0 +1,2 @@
+matchup,prompt_a,prompt_b,num_samples,a_winrate_soft,b_winrate_soft,a_winrate_strict,b_winrate_strict,ties,tie_rate
+P13_vs_P19,P13,P19,50,0.5800,0.4200,0.5909,0.4091,6,0.1200

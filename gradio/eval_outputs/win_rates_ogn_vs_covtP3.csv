@@ -1,0 +1,4 @@
+track,prompt,num_samples,original_winrate,covt_winrate,ties
+A,P3,50,0.040000,0.960000,0
+B,P3,40,0.000000,1.000000,0
+C,P3,5,0.400000,0.600000,0

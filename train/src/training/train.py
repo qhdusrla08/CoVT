@@ -2,6 +2,263 @@ import os
 import torch
 from peft import LoraConfig, get_peft_model
 import ast
+# [추가됨] 시각화에 필요한 라이브러리
+import json
+from PIL import Image
+import numpy as np
+
+from transformers import AutoProcessor, BitsAndBytesConfig, HfArgumentParser
+from training.trainer import QwenTrainer, UnfreezeLoRACallback, ResumeDatasetCallback
+from training.data import make_supervised_data_module
+from training.params import DataArguments, ModelArguments, TrainingArguments
+from training.train_utils import get_peft_state_maybe_zero_3, get_peft_state_non_lora_maybe_zero_3, safe_save_model_for_hf_trainer
+import pathlib
+from liger_kernel.transformers import apply_liger_kernel_to_qwen2_vl
+from monkey_patch_forward import replace_qwen2_5_with_mixed_modality_forward, replace_qwen_2_with_mixed_modality_forward
+
+from training.covt_qwen2_5_vl import CoVTForConditionalGeneration
+from training.constants import *
+from deepspeed import zero
+
+# Flash Attention 에러 방지용 (필요시 사용)
+from unittest.mock import MagicMock
+import sys
+# sys.modules["flash_attn"] = MagicMock() # 에러 발생 시 주석 해제
+
+local_rank = None
+torch.manual_seed(42)
+
+def rank0_print(*args):
+    if local_rank == 0 or local_rank == '0' or local_rank is None:
+        print(*args)
+
+def find_target_linear_names(model, num_lora_modules=-1, lora_namespan_exclude=[], verbose=True):
+    linear_cls = torch.nn.modules.Linear
+    embedding_cls = torch.nn.modules.Embedding
+    lora_module_names = []
+    for name, module in model.named_modules():
+        if any(ex_keyword in name for ex_keyword in lora_namespan_exclude):
+            continue
+        if isinstance(module, (linear_cls, embedding_cls)):
+            lora_module_names.append(name)
+    if num_lora_modules > 0:
+        lora_module_names = lora_module_names[-num_lora_modules:]
+    if verbose:
+        rank0_print(f"Found {len(lora_module_names)} lora modules: {lora_module_names}")
+    return lora_module_names
+
+def set_requires_grad(parameters, requires_grad):
+    for p in parameters:
+        p.requires_grad = requires_grad
+        
+def set_anchor_requires_grad(model, anchor_model_id):
+    if "sam" in anchor_model_id:
+        set_requires_grad(model.sam_projection.parameters(), True)
+        set_requires_grad(model.sam_cross_attention.parameters(), True)
+        model.sam_query_vectors.requires_grad = True
+    # ... (나머지 생략 가능, SAM만 쓴다면)
+
+def configure_vision_tower(model, training_args, compute_dtype, device):
+    vision_tower = model.visual
+    vision_tower.to(dtype=compute_dtype, device=device)
+    vision_model_params = model.visual.parameters()
+    set_requires_grad(vision_model_params, not training_args.freeze_vision_tower)
+    merger_params = model.visual.merger.parameters()
+    set_requires_grad(merger_params, training_args.tune_merger)
+    
+def configure_llava_vision_tower(model, model_args, training_args, compute_dtype, processor):
+    model.get_model().initialize_vision_modules(model_args=model_args, fsdp=training_args.fsdp)
+    vision_tower = model.get_vision_tower()
+    vision_tower.to(dtype=torch.bfloat16 if training_args.bf16 else torch.float16, device=training_args.device)
+    model.config.image_aspect_ratio = "pad"
+    model.config.tokenizer_padding_side = processor.tokenizer.padding_side
+    model.config.tokenizer_model_max_length = processor.tokenizer.model_max_length
+    if training_args.bits in [4, 8]:
+        model.get_model().mm_projector.to(dtype=compute_dtype, device=training_args.device)
+    model.config.mm_use_im_start_end = False
+    model.config.mm_projector_lr = 2e-5
+    training_args.use_im_start_end = False
+    model.config.mm_use_im_patch_token = False
+    model.initialize_vision_tokenizer(model_args, tokenizer=processor.tokenizer)
+
+def configure_llm(model, training_args):
+    lm_head = model.lm_head.parameters()
+    set_requires_grad(lm_head, not training_args.freeze_llm)
+    llm_params = model.model.parameters()
+    set_requires_grad(llm_params, not training_args.freeze_llm)
+
+def train():
+    global local_rank
+    parser = HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
+    model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+    
+    anchor_model_id = ast.literal_eval(model_args.anchor_model_id)
+    if model_args.model_path is None:
+        model_args.model_path = model_args.model_id
+    
+    replace_qwen2_5_with_mixed_modality_forward(use_liger=training_args.use_liger)
+
+    if training_args.lora_enable and not training_args.freeze_llm:
+        raise ValueError("If `lora_enable` is True, `freeze_llm` must also be True.")
+
+    local_rank = training_args.local_rank
+    compute_dtype = (torch.float16 if training_args.fp16 else (torch.bfloat16 if training_args.bf16 else torch.float32))
+
+    bnb_model_from_pretrained_args = {}
+    if training_args.bits in [4,8]:
+        bnb_model_from_pretrained_args.update(dict(
+            device_map={"":training_args.device},
+            quantization_config = BitsAndBytesConfig(
+                load_in_4bit=training_args.bits==4,
+                load_in_8bit=training_args.bits==8,
+                llm_int8_skip_modules=["visual"],
+                llm_int8_threshold=6.0,
+                llm_int8_has_fp16_weight=False,
+                bnb_4bit_compute_dtype=compute_dtype,
+                bnb_4bit_use_double_quant=training_args.double_quant,
+                bnb_4bit_quant_type=training_args.quant_type,
+            )
+        ))
+
+    model = CoVTForConditionalGeneration.from_pretrained(
+        model_args.model_path,
+        torch_dtype=compute_dtype,
+        attn_implementation="flash_attention_2" if not training_args.disable_flash_attn2 else "sdpa", 
+        **bnb_model_from_pretrained_args
+    )
+    
+    model.get_anchor_model_ids(anchor_model_id)
+    model.align_vqa_only_stage = training_args.vqa_only_stage
+    model.config.use_cache = False
+    
+    configure_llm(model, training_args)
+    if "Qwen" in model_args.model_id:
+        configure_vision_tower(model, training_args, compute_dtype, training_args.device)
+    
+    set_anchor_requires_grad(model, anchor_model_id)
+    
+    # ... (중략: LoRA 설정 등 원본 유지) ...
+    if training_args.lora_enable:
+        peft_config = LoraConfig(
+            r=training_args.lora_rank,
+            lora_alpha=training_args.lora_alpha,
+            target_modules=find_target_linear_names(model, lora_namespan_exclude=["visual"], num_lora_modules=training_args.num_lora_modules),
+            lora_dropout=training_args.lora_dropout,
+            bias=training_args.lora_bias
+        )
+        model = get_peft_model(model, peft_config)
+        for name, param in model.named_parameters():
+            if '_projection' in name or 'cross_attention' in name or '_query_vectors' in name:
+                param.requires_grad = True
+
+    processor = AutoProcessor.from_pretrained(model_args.model_id, padding_side="right")
+    model.config.vision_lr = training_args.vision_lr
+    
+    add_tokens = [SAM_PAD_TOKEN, DINO_PAD_TOKEN, DEPTH_PAD_TOKEN, SD_PAD_TOKEN, INTERN_PAD_TOKEN, PIDINET_PAD_TOKEN, SIGLIP_PAD_TOKEN, METACLIP_PAD_TOKEN, "<think>", "</think>", "<answer>", "</answer>"]
+    processor.tokenizer.add_special_tokens({"additional_special_tokens": [ANCHOR_START_TOKEN, ANCHOR_END_TOKEN]})
+    processor.tokenizer.add_tokens(add_tokens)
+    
+    # ... (토큰 인덱스 설정 원본 유지) ...
+    sam_token_idx = processor.tokenizer(SAM_PAD_TOKEN, add_special_tokens=False).input_ids[0]
+    model.get_anchor_token_idx(sam_token_idx, 0, 0, 0, 0, 0, 0, 0) # 편의상 SAM만 매핑
+
+    data_module = make_supervised_data_module(model_id=model_args.model_id,
+                                              processor=processor,
+                                              data_args=data_args,
+                                              anchor_model_id=anchor_model_id)
+    
+    # [수정] eval_dataset이 없으면 train_dataset을 복사해서 에러 방지
+    if 'eval_dataset' not in data_module or data_module['eval_dataset'] is None:
+        data_module['eval_dataset'] = data_module['train_dataset']
+
+    trainer = QwenTrainer(
+        model=model,
+        processor=processor,
+        args=training_args,
+        **data_module
+    )
+
+    # ---------------------------------------------------------
+    # [핵심 추가] 원본에는 없던 '추론 및 시각화' 로직 추가
+    # ---------------------------------------------------------
+    if training_args.do_eval:
+        rank0_print("!!! Starting Inference & Visualization !!!")
+        model.eval()
+        res_path = os.path.join(training_args.output_dir, "results")
+        os.makedirs(res_path, exist_ok=True)
+
+        with open(data_args.data_path, 'r') as f:
+            raw_data = json.load(f)
+
+        eval_dataloader = trainer.get_eval_dataloader()
+        
+        for i, inputs in enumerate(eval_dataloader):
+            try:
+                with torch.no_grad():
+                    # 1. Attention Mask 생성 (필수)
+                    input_ids = inputs["input_ids"].to(model.device)
+                    attention_mask = torch.ones_like(input_ids).to(model.device)
+
+                    # 2. 모델 추론
+                    outputs = model.generate(
+                        input_ids=input_ids,
+                        attention_mask=attention_mask, # Mask 전달
+                        pixel_values=inputs["pixel_values"].to(model.device),
+                        image_grid_thw=inputs["image_grid_thw"].to(model.device),
+                        max_new_tokens=256,
+                        do_sample=False,
+                        output_hidden_states=True,   # 시각화를 위해 Hidden State 필요
+                        return_dict_in_generate=True 
+                    )
+                    
+                    # 3. 텐서 결합
+                    all_hiddens = [h[-1] for h in outputs.hidden_states]
+                    last_hidden_states = torch.cat(all_hiddens, dim=1) 
+
+                    # 4. 이미지 준비
+                    img_name = os.path.basename(raw_data[i]['image'])
+                    full_img_path = os.path.join(data_args.image_folder, img_name)
+                    if not os.path.exists(full_img_path): # 경로 보정
+                        full_img_path = os.path.join("/workspace/inf_data", img_name)
+                    raw_image = Image.open(full_img_path).convert("RGB")
+
+                    # 5. [수정] PeftModel 래핑 해제 및 visual 호출
+                    # LoRA 적용 시 model.visual이 숨겨질 수 있으므로 base_model 사용
+                    target_model = model.base_model.model if hasattr(model, 'base_model') else model
+                    
+                    # Qwen2.5-VL은 visual에 grid_thw를 꼭 넣어야 합니다. (에러 해결 핵심)
+                    visual_feats = target_model.visual(
+                        inputs["pixel_values"].to(model.device),
+                        grid_thw=inputs["image_grid_thw"].to(model.device)
+                    )
+
+                    # 6. 시각화 실행 (SAM 모듈이 로드되어 있어야 함)
+                    target_model.decode_sam_embed_with_tokens(
+                        visual_feats, raw_image, last_hidden_states
+                    )
+                    rank0_print(f"Success! Saved: {img_name}")
+
+            except Exception as e:
+                rank0_print(f"[Error] {e}")
+                import traceback
+                traceback.print_exc()
+            
+            # 테스트를 위해 1장만 하고 종료 (필요 시 주석 처리)
+            # break 
+    else:
+        trainer.train()
+        trainer.save_state()
+        # 저장 로직 원본 유지...
+
+if __name__ == "__main__":
+    train()
+
+
+"""
+import os
+import torch
+from peft import LoraConfig, get_peft_model
+import ast
 from transformers import AutoProcessor, BitsAndBytesConfig, HfArgumentParser
 from training.trainer import QwenTrainer, UnfreezeLoRACallback, ResumeDatasetCallback
 from training.data import make_supervised_data_module
@@ -391,3 +648,4 @@ def train():
 
 if __name__ == "__main__":
     train()
+"""

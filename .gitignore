@@ -210,3 +210,7 @@ __marimo__/
 /train/output/
 /train/scripts/*backup*
 /train/wandb/
+
+# Large data / installer
+/gradio/data/
+/Miniconda3-latest-Linux-x86_64.sh

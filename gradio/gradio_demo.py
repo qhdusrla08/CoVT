@@ -154,7 +154,7 @@ def run_single_inference(
             temperature=temperature,
             top_p=top_p,
             do_sample=do_sample,
-            generator=generator,
+            # generator=generator,
             pad_token_id=processor.tokenizer.eos_token_id,
             eos_token_id=processor.tokenizer.eos_token_id,
         )
