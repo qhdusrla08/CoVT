@@ -88,6 +88,12 @@ Analysis of 30 CoVT-winning captions:
 
 Despite these wins, qualitative analysis confirmed persistent **cultural hallucination** in both models — unverifiable claims generated from textual priors rather than image content. This motivated external knowledge injection.
 
+| | **Example 1** — 성묘 (Grave Visitation) | **Example 2** — 윷놀이 (Yutnori) |
+|---|---|---|
+| **Base** | "Seongmyo, a significant historical site in South Korea, is a **royal ancestral shrine where kings and their families are honored**, reflecting the country's **rich Confucian heritage and respect for lineage and tradition**." | "The image depicts two children dressed in traditional Korean hanbok, engaging in the playful activity of juggling wooden sticks, which is **a common element in the cultural game known as Yutnori**." |
+| **CoVT** | "Seongmyo, a significant historical site in South Korea, serves as **a place of reverence for the veneration of ancestors and the preservation of cultural heritage**." | "The image depicts two children dressed in traditional Korean hanbok, engaging in the playful activity of juggling wooden sticks, which is **a form of Yutnori, a traditional Korean game that combines elements of juggling and board games**." |
+| **Hallucination** | "royal ancestral shrine," "Confucian heritage" — without domain knowledge of 성묘, the category label alone is uninterpretable; the model fills the gap with textual priors, failing to ground in the visible scene (suited men standing at a grave) | "Yutnori" misidentified — without knowledge of what 윷 looks like, the model cannot correctly interpret the sticks; game type asserted from prior, not visual evidence |
+
 ### Experiment 2B — Knowledge-Injected Captioning
 
 #### Knowledge Base Design
@@ -169,11 +175,13 @@ This domain-level variation motivated a per-image selection strategy rather than
 
 ```
 gradio/
-├── gen_scripts/      # Caption generation scripts (CoVT + baseline)
-└── eval_scripts/     # GPT-based pairwise evaluation scripts
+├── gen_scripts/      # Caption generation scripts (CoVT + baseline, KB-injected variants)
+├── eval_scripts/     # GPT-based pairwise evaluation scripts
+└── gradio_demo.py    # Interactive demo
 train/                # CoVT training code (forked from original repo)
 VLMEvalKit/           # Evaluation framework (forked)
-docs/                 # Experiment logs and analysis
+docs/                 # Original CoVT documentation
+assets/               # Figures used in this README
 ```
 
 ---
