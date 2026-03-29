@@ -1,2 +1,0 @@
-matchup,prompt_a,prompt_b,num_samples,a_winrate_soft,b_winrate_soft,a_winrate_strict,b_winrate_strict,ties,tie_rate
-P15_vs_P17,P15,P17,640,0.6328,0.3672,0.6622,0.3378,116,0.1812

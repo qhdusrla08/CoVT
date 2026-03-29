@@ -1,4 +1,0 @@
-track,prompt,num_samples,base_winrate_soft,covt_winrate_soft,base_winrate_strict,covt_winrate_strict,ties,tie_rate
-B,P17,50,0.450000,0.550000,0.441860,0.558140,7,0.140000
-B,P18,50,0.570000,0.430000,0.577778,0.422222,5,0.100000
-B,P19,50,0.340000,0.660000,0.318182,0.681818,6,0.120000
