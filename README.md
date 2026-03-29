@@ -6,14 +6,22 @@
 
 ## Overview
 
-This repository documents two sets of experiments exploring the capabilities and limitations of [CoVT](https://arxiv.org/abs/2511.19418) — a visual reasoning framework for VLMs — when applied to **Korean cultural heritage image captioning**, a domain characterized by sparse training coverage and high sensitivity to cultural hallucination.
+![CoVT Teaser](assets/teaser.png)
+*Figure: CoVT overview. Source — [Qin et al., "Chain-of-Visual-Thought" (arXiv:2511.19418)](https://arxiv.org/abs/2511.19418)*
+
+This repository documents two sets of experiments applying [CoVT](https://arxiv.org/abs/2511.19418) to caption generation for fine-tuning a Korean-domain MLLM. The dataset comprises two main categories:
+
+- **Senior Interest Domain**: general-interest imagery (activities, daily life, etc.) relevant to senior users
+- **Korean Cultural Heritage Domain**: Korean cultural imagery characterized by sparse training coverage and high sensitivity to cultural hallucination
 
 The experiments proceed in two stages:
 
-1. **Experiment 1**: Validate whether CoVT's visual reasoning advantage transfers to a culturally specific, underrepresented domain.
-2. **Experiment 2**: Design and evaluate an external knowledge injection framework to address the cultural knowledge gap that visual reasoning alone cannot fill.
+1. **Experiment 1** *(small-scale MVP)*: Validate CoVT's captioning performance across the full dataset — including a curated subset with high hallucination risk. This established that CoVT produces reliable captions for the senior interest category directories, which were subsequently captioned with CoVT.
+2. **Experiment 2**: For the Korean cultural heritage domain — where hallucination risk is higher and visual grounding alone is insufficient — design and evaluate a knowledge injection framework and a per-image model selection strategy.
 
-The final output is a curated training dataset of **24,923 Korean cultural images** with model-selected captions, intended for subsequent knowledge-injection fine-tuning.
+*Note: The dataset was collected and used during a research internship. Raw data is not publicly available.*
+
+The final output is a curated training dataset of **24,923 images** with model-selected captions, intended for fine-tuning a Korean-domain MLLM.
 
 ---
 
@@ -44,6 +52,12 @@ CoVT introduces continuous visual tokens (segmentation, depth, DINO, edge) into 
 ---
 
 ## Method
+
+![CoVT Pipeline](assets/pipeline.png)
+*Figure: CoVT training pipeline. Source — [Qin et al., "Chain-of-Visual-Thought" (arXiv:2511.19418)](https://arxiv.org/abs/2511.19418)*
+
+![CoVT Method](assets/method.png)
+*Figure: CoVT method overview. Source — [Qin et al., "Chain-of-Visual-Thought" (arXiv:2511.19418)](https://arxiv.org/abs/2511.19418)*
 
 ### Experiment 1 — Baseline Validation
 
@@ -107,29 +121,29 @@ P15 was selected after identifying a key failure in earlier prompts: CoVT captio
 
 ---
 
-## Key Results and Failure Mode Analysis
+## Key Results and Analysis
 
 ### Large-Scale Evaluation (640 images, P15)
 
-Domain-level breakdown revealed systematic CoVT underperformance in three categories:
+Domain-level breakdown revealed that CoVT's advantage varies systematically across categories:
 
-| Domain | CoVT Win Rate | Root Cause |
+| Domain | CoVT Win Rate | Reason |
 |---|---|---|
 | History | **0.359** | Monuments, statues, archival photos — minimal perceptual signal from visual tokens |
 | Architecture | 0.483 | Single-subject buildings — limited spatial variation |
 | Folk | 0.473 | Costume/movement interpretation requires cultural semantics, not spatial perception |
 
-### Identified Failure Modes
+### Domain-Level Performance Variation
 
-**1. Domain mismatch**: CoVT's visual tokens (Seg/Depth/DINO/Edge) are optimized for spatial tasks (counting, depth ordering). In knowledge-intensive categories, they add no marginal value.
+**1. Domain mismatch**: CoVT's visual tokens (Seg/Depth/DINO/Edge) are optimized for spatial tasks (counting, depth ordering). In knowledge-intensive categories, they add no marginal value over the baseline.
 
-**2. Catastrophic forgetting**: CoVT was fine-tuned on vision-centric data (LLaVA-OneVision, TallyQA, ADE20K-Depth) with no Korean cultural imagery. Fine-tuning partially diluted Qwen2.5-VL's pre-trained cultural knowledge, causing systematic underperformance in knowledge-intensive domains.
+**2. Fine-tuning distribution shift**: CoVT was fine-tuned on vision-centric data (LLaVA-OneVision, TallyQA, ADE20K-Depth) with no Korean cultural imagery, partially diluting Qwen2.5-VL's pre-trained cultural knowledge in knowledge-intensive domains.
 
 **3. Caption convergence**: For visually homogeneous categories (e.g., Haenggung palace images), CoVT produced near-identical captions with >0.9 SequenceMatcher similarity across 62 image pairs. When visual tokens fail to encode domain-specific distinctions, the `<think>...<visual tokens>...</think>` reasoning chain becomes a passthrough, and generation collapses toward the fine-tuning distribution mean.
 
-### Solution: Winner-Model Selection with Deduplication (Strategy C)
+### Winner-Model Selection with Deduplication (Strategy C)
 
-To construct a high-quality, diverse training dataset despite these failure modes:
+This domain-level variation motivated a per-image selection strategy rather than committing to either model globally:
 
 1. **Per-image GPT-based selection**: Use GPT-4.1 pairwise evaluation to select the better caption per image (CoVT or baseline). Automatically adapts to domain-level performance variation without manual rules.
 2. **SequenceMatcher deduplication**: Remove captions with similarity > 0.85 within each category; retain the more specific caption (by word count).
@@ -168,10 +182,10 @@ docs/                 # Experiment logs and analysis
 
 This is an independent undergraduate research project — not a paper submission or formal study. The contribution is primarily:
 
-- Systematic empirical investigation of where and why CoVT generalizes (or fails to) in a culturally underrepresented domain
+- Systematic empirical investigation of where and why CoVT's advantage varies across cultural domains
 - A structured knowledge injection design that separates visual grounding from semantic naming
-- Concrete failure mode analysis (domain mismatch, catastrophic forgetting, caption convergence) with traceable causes
-- A 24,923-image training dataset with principled construction methodology
+- Domain-level performance analysis (domain mismatch, fine-tuning distribution shift, caption convergence) with traceable causes
+- A 24,923-image training dataset constructed via winner-model selection and deduplication
 
 The original CoVT framework was developed by Qin et al. (2025) at UC Berkeley. This work is an application and extension study built on their publicly released code and models.
 

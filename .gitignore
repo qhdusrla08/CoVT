@@ -1,6 +1,15 @@
 # Project-specific ignores
 CLAUDE.md
 /drafts/
+/gradio/utils/
+
+# Gradio intermediate output files (reproducible from scripts)
+/gradio/outputs/
+/gradio/outputs_korean/
+/gradio/eval_outputs/**/pairs*.jsonl
+/gradio/eval_outputs/**/eval_results*.jsonl
+/gradio/eval_outputs_korean/**/pairs*.jsonl
+/gradio/eval_outputs_korean/**/eval_results*.jsonl
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
