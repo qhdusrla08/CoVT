@@ -1,187 +1,185 @@
-<!-- # CoVT: Chain-of-Visual-Thought -->
-<div align="center">
+# Applying CoVT to Korean Cultural Image Captioning with Knowledge Injection
 
-  <h1 style="margin: 0; font-size: 1.8em;">
-    Chain-of-Visual-Thought: Teaching VLMs to See and Think Better with Continuous Visual Tokens
-  </h1>
+> Independent experiments by an undergraduate researcher, built on top of [CoVT (Chain-of-Visual-Thought)](https://arxiv.org/abs/2511.19418) by Qin et al. (UC Berkeley, 2025).
 
-  <h4 style="margin: 15px 0; color:rgb(50, 151, 234);">
-    ⭐️ CoVT enriches VLMs’ vision-centric reasoning capabilities. ⭐️
-  </h4>
+---
 
-  [![Arixv](https://img.shields.io/badge/arxiv-A42C25?style=for-the-badge&logo=arxiv&logoColor=white)](https://arxiv.org/abs/2511.19418)
-  [![Hugging Face Collection](https://img.shields.io/badge/HuggingFace-fcd022?style=for-the-badge&logo=huggingface&logoColor=000)](https://huggingface.co/collections/Wakals/covt-chain-of-visual-thought)
-  [![Project Page](https://img.shields.io/badge/Project_Page-00CED1?style=for-the-badge&logoColor=white&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMCAyMHYtNmg0djZoNXYtOGgzTDEyIDMgMiAxMmgzdjh6Ii8+PC9zdmc+)](https://wakalsprojectpage.github.io/covt-website/)
+## Overview
 
-</div>
+This repository documents two sets of experiments exploring the capabilities and limitations of [CoVT](https://arxiv.org/abs/2511.19418) — a visual reasoning framework for VLMs — when applied to **Korean cultural heritage image captioning**, a domain characterized by sparse training coverage and high sensitivity to cultural hallucination.
 
+The experiments proceed in two stages:
 
-<div align="center">
-  <b>
-    <a href="https://wakals.github.io/" target="_blank">Yiming Qin</a><sup>1</sup>,
-    <a href="https://github.com/David-BominWei" target="_blank">Bomin Wei</a><sup>2</sup>,
-     <a href="https://gejiaxin.org/" target="_blank">Jiaxin Ge</a><sup>1</sup>,
-      <a href="https://tech-ai.panasonic.com/en/researcher_introduction/048/" target="_blank">Konstantinos Kallidromitis</a><sup>3</sup>,<br>
-       <a href="https://stephanie-fu.github.io/" target="_blank">Stephanie Fu</a><sup>1</sup>,
-    <a href="https://people.eecs.berkeley.edu/~trevor/" target="_blank">Trevor Darrell</a><sup>1</sup>,
-    <a href="https://people.eecs.berkeley.edu/~xdwang/" target="_blank">XuDong Wang</a><sup>1*</sup>
-  </b><br>
-  
-  <span style="font-size: 1em; color: #555;">
-    University of California, Berkeley<sup>1</sup><br>
-    University of California, Los Angeles<sup>2</sup><br>
-    Panasonic AI Research<sup>3</sup>
-  </span>
+1. **Experiment 1**: Validate whether CoVT's visual reasoning advantage transfers to a culturally specific, underrepresented domain.
+2. **Experiment 2**: Design and evaluate an external knowledge injection framework to address the cultural knowledge gap that visual reasoning alone cannot fill.
 
-  <p style="color: #555; font-size: 0.9em; margin-top: 8px; margin-bottom: 0;">
-    *Corresponding author
-  </p>
+The final output is a curated training dataset of **24,923 Korean cultural images** with model-selected captions, intended for subsequent knowledge-injection fine-tuning.
 
-</div>
+---
 
-<div align="center">
-  <img src="./assets/DEMO.jpg" alt="" style="width: 100%; margin: 10px 0;">
-  <img src="./assets/edit_demo.jpg" alt="" style="width: 100%; margin: 10px 0;">
-</div>
+## Research Motivation
 
-## 🔥 News
+### Problem: Three Failure Modes in VLMs for Domain-Specific Captioning
 
-[2025-11-24] 🥃 Released the [training data](https://huggingface.co/datasets/Wakals/CoVT-Dataset) and code. Give it a shot!
+Applying general-purpose VLMs to Korean cultural imagery surfaces three distinct failure modes:
 
-[2025-11-24] ⭐️ The evaluation and Gradio demo are available NOW!
+| Failure Mode | Description | Example |
+|---|---|---|
+| **Object Hallucination** | Generating entities absent from the image | Labeling a Korean kite-flying scene as "Chinese Dragon Boat Festival" |
+| **Language Prior Dominance** | Captions driven by pre-trained text patterns rather than visual evidence | Describing any traditional gathering as "symbolizing unity and harmony" |
+| **Subjective Injection** | Inserting unverifiable symbolic or emotional content | "The ritual carries deep ancestral meaning" (image shows men in suits) |
 
-[2025-11-24] 🤗 Our finetuned weights are available. [Check it here!](https://huggingface.co/collections/Wakals/covt-chain-of-visual-thought)
+These issues are amplified in underrepresented domains where pre-trained models lack localized knowledge.
 
-## 📑 Table of Contents
+### Why CoVT? And Why Is It Insufficient Alone?
 
-- [👀 Overview](#-overview)
-- [🚀 Quick Start](#-quick-start)
-- [🤗 Model Zoo](#-model-zoo)
-- [🏖️ TODO](#-todo)
-- [🪪 License](#-license)
-- [📮 Contact](#-contact)
+CoVT introduces continuous visual tokens (segmentation, depth, DINO, edge) into VLM reasoning chains, improving perceptual grounding on general benchmarks. This raised a natural question: does better visual grounding reduce cultural hallucination?
 
-## 👀 Overview
+**Short answer: partially, but not sufficiently.**
 
-![Teaser Image](assets/teaser.png)
+- CoVT reduces hallucination driven by visual ambiguity
+- CoVT *cannot* supply missing semantic knowledge — it cannot identify an unfamiliar cultural artifact by name, even when it describes its shape correctly
+- This gap motivated designing a knowledge injection mechanism that complements CoVT's perceptual strengths
 
-> Rather than restricting VLM reasoning to a discrete language space with limited representational capacity, **CoVT** forms a visual thought chain that enables VLMs to reason in continuous visual space. By introducing *continuous visual tokens* that encode perceptual cues (e.g., segmentation, depth, instance, and edge structure), CoVT composes *chains of textual and visual thoughts* that link semantic reasoning with perceptual grounding. These visual “thought chains” bridge language and vision, enabling fine-grained understanding, spatial precision, and geometric awareness beyond the reach of text-based reasoning.
+---
 
+## Method
 
-<details>
-<summary><strong>💡 Abstract</strong></summary>
+### Experiment 1 — Baseline Validation
 
-<br>
+**Setup**: 50 Korean cultural images across 32 categories. Blind pairwise comparison (CoVT-7B-seg_depth_dino vs. Qwen2.5-VL-7B baseline) using GPT-4.1-mini as judge with five evaluation criteria (visual grounding, hallucination absence, neutrality, detail, generalization).
 
-Vision–Language Models (VLMs) excel at reasoning in linguistic space but struggle with perceptual understanding that requires dense visual perception, *e.g.*, spatial reasoning and geometric awareness.This limitation stems from the fact that current VLMs have limited mechanisms to capture dense visual information across spatial dimensions. We introduce **Chain-of-Visual-Thought (CoVT)**, a framework that enables VLMs to reason not only in words but also through **continuous visual tokens** — compact latent representations that encode rich perceptual cues. Within a small budget of roughly **20 tokens**, CoVT distills knowledge from lightweight vision experts capturing complementary properties such as **2D appearance, 3D geometry, spatial layout, and edge structure**. During training, a VLM equipped with CoVT autoregressively predicts these visual tokens to reconstruct dense supervision signals (*e.g.*, depth, segmentation, edges, and DINO features). At inference, the model reasons directly in the continuous visual-token space, preserving efficiency while optionally decoding dense predictions for interpretability. Evaluated across more than **ten diverse perception benchmarks**, including CV-Bench, MMVP, RealWorldQA, MMStar, WorldMedQA, and HRBench, integrating CoVT into strong VLMs such as **Qwen2.5-VL** and **LLaVA** consistently improves performance by **3% to 16%**, demonstrating that compact continuous visual thinking enables more precise, grounded, and interpretable multimodal intelligence.
+**Key design decision — prompt sensitivity**:
 
-<br>
-</details>
+| Prompt | Strategy | CoVT Win Rate (Korean) |
+|---|---|---|
+| P0 | No category info | ~0.50 |
+| P1 | Category name + description | 0.28 (**baseline wins 0.72**) |
+| P2 | Visual element extraction | — |
+| P3 | Structural verification (training-format-aligned) | **0.56** |
 
-<details>
-<summary><strong>🧩 Pipeline</strong></summary>
+Prompt P1 degraded CoVT performance significantly, while P3 — designed to match CoVT's internal training format — recovered it. This established that **prompt design must account for model-internal reasoning mechanisms**, not just task objectives.
 
-<br>
+### Experiment 2A — Extending to Cultural Context (without KB)
 
-![Pipeline Image](assets/pipeline.png)
+Extended prompt space to P0–P6 (adding culturally framed instructions). P6 ("Describe the visual appearance and cultural context...") achieved CoVT win-rate of **0.60**.
 
-> **Continuous visual thinking with CoVT.** CoVT introduces compact, continuous visual tokens that encode fine-grained perceptual cues, such as object localization, spatial structure, and scene semantics, directly into VLM reasoning. These tokens ground multimodal reasoning in visual space, enabling the model to capture fine-grained relationships across vision-centric tasks (e.g., counting, depth ordering, and scene understanding) without relying on external tools. They can also be decoded into dense predictions, offering human-interpretable visualizations of the model's reasoning process.
+Analysis of 30 CoVT-winning captions:
 
-![Method Image](assets/method.png)
+| Pattern | Frequency |
+|---|---|
+| Suppression of baseline hallucinations | 93.3% |
+| More visually grounded details | 60.0% |
+| Correct use of cultural terminology within visual bounds | 50.0% |
 
-> **The training pipeline of CoVT.** CoVT first generates the thinking process, containing visual thinking tokens, and then leverages these visual thoughts to condition next-token prediction and reason the final answer. To endow these tokens with perceptual meaning, we align them with lightweight vision experts (e.g., SAM, DepthAnything, PIDINet, DINO) on their respective tasks during training. Specifically: SAM uses 8 visual tokens as mask prompts; DepthAnything uses 4 tokens to reconstruct depth; PIDINet uses 4 tokens to reconstruct edges; and DINO uses 4 tokens to match patch-level features. The VLM is finetuned with LoRA and all projection layers are trainable. ***Note: During inference, dense predictions are decoded only when interpretability is desired; otherwise, reasoning occurs entirely in the latent visual space.***
+Despite these wins, qualitative analysis confirmed persistent **cultural hallucination** in both models — unverifiable claims generated from textual priors rather than image content. This motivated external knowledge injection.
 
-<br>
-</details>
+### Experiment 2B — Knowledge-Injected Captioning
 
-<details>
-<summary><strong>💫 Results</strong></summary>
+#### Knowledge Base Design
 
-<br>
+- 32 categories mapped to dictionary-style, **visually grounded definitions** (what is visible in an image, not encyclopedic background)
+- Integrated via RAG-style prompting — no fine-tuning required
+- Core design principle: treat KB as a **naming guide**, not a content source
 
-![Results Image](assets/results.png)
+**Negative constraint**: prompts explicitly prohibited the model from including KB content not directly visible in the image.
 
-> **Comparison of CoVT with the baseline and closed-source models.** CoVT delivers consistent improvements across all vision-centric benchmarks and further reveals that each type of visual token contributes most effectively to the tasks that align with its encoded perceptual information.
+#### Systematic Prompt Exploration (P7–P16)
 
-![Results Image](assets/results_llava.png)
+Three iteration rounds across 10 prompt variants:
 
-> **Comparison between CoVT and Aurora based on LLaVA-v1.5-13B.** $^{\dag}$ indicates our reproduced results based on the provided checkpoints.
+| Round | Prompts | Focus |
+|---|---|---|
+| v2 | P7–P13 | KB presentation format: parenthetical, reference block, naming guide, conditional application |
+| v3 | P14–P16 | Combining best v2 elements: image-first + KB isolation, visual detail density, double grounding |
+| Final | P15 | Large-scale validation on 640 images (20 per category) |
 
-<br>
-</details>
+**Final prompt (P15)**:
+```
+Reference: {category} — {definition}.
+Describe what you actually see in this image in exactly one sentence,
+noting colors, shapes, and spatial arrangement.
+Use the correct Korean cultural term if visually supported.
+Do not include any reference details that are not visible.
+```
 
-## 🚀 Quick Start!
+P15 was selected after identifying a key failure in earlier prompts: CoVT captions were 9–19 characters shorter than baseline captions, with reduced visual detail. P15's explicit instructions ("colors, shapes, and spatial arrangement") addressed this gap while preserving grounding constraints.
 
-### Evaluation
+---
 
-To ensure consistency and reproducibility, we use **VLMEvalKit** as the framework for evaluating models. In our repository, we have forked a copy of [VLMEvalKit](https://github.com/open-compass/VLMEvalKit). You can have a quick start by following this [instruction](docs/Eval.md).
+## Key Results and Failure Mode Analysis
 
-### Gradio Demo
+### Large-Scale Evaluation (640 images, P15)
 
-We provid an interactive demo built with [Gradio](https://github.com/gradio-app/gradio), showcasing a conversational interface powered by the CoVT VLM. The demo allows users to upload images, ask questions, and interact with the model in real time through a simple web UI. You can have a quick start following [here](docs/Demo.md).
+Domain-level breakdown revealed systematic CoVT underperformance in three categories:
 
-![Gradio Demo Image](assets/gradio_demo.png)
+| Domain | CoVT Win Rate | Root Cause |
+|---|---|---|
+| History | **0.359** | Monuments, statues, archival photos — minimal perceptual signal from visual tokens |
+| Architecture | 0.483 | Single-subject buildings — limited spatial variation |
+| Folk | 0.473 | Costume/movement interpretation requires cultural semantics, not spatial perception |
 
-### Training CoVT
+### Identified Failure Modes
 
-Our training data is released [here](https://huggingface.co/datasets/Wakals/CoVT-Dataset)!
+**1. Domain mismatch**: CoVT's visual tokens (Seg/Depth/DINO/Edge) are optimized for spatial tasks (counting, depth ordering). In knowledge-intensive categories, they add no marginal value.
 
-<details>
-<summary><strong>Dataset Composition</strong></summary>
+**2. Catastrophic forgetting**: CoVT was fine-tuned on vision-centric data (LLaVA-OneVision, TallyQA, ADE20K-Depth) with no Korean cultural imagery. Fine-tuning partially diluted Qwen2.5-VL's pre-trained cultural knowledge, causing systematic underperformance in knowledge-intensive domains.
 
-<br>
+**3. Caption convergence**: For visually homogeneous categories (e.g., Haenggung palace images), CoVT produced near-identical captions with >0.9 SequenceMatcher similarity across 62 image pairs. When visual tokens fail to encode domain-specific distinctions, the `<think>...<visual tokens>...</think>` reasoning chain becomes a passthrough, and generation collapses toward the fine-tuning distribution mean.
 
-![Data Image](assets/data.png)
+### Solution: Winner-Model Selection with Deduplication (Strategy C)
 
-> CoVT dataset utilizes some subsets of LLaVA-OneVision, and merges the filtered TallyQA dataset and ADE20K-Depth from Aurora.
+To construct a high-quality, diverse training dataset despite these failure modes:
 
-<br>
-</details>
+1. **Per-image GPT-based selection**: Use GPT-4.1 pairwise evaluation to select the better caption per image (CoVT or baseline). Automatically adapts to domain-level performance variation without manual rules.
+2. **SequenceMatcher deduplication**: Remove captions with similarity > 0.85 within each category; retain the more specific caption (by word count).
 
+**Result**: 24,923 training images with quality-selected, deduplicated captions across 32 Korean cultural categories.
 
-To reproduce our method, please follow [this instruction](docs/Train.md) and start training CoVT! 🍻
+---
 
-## 🤗 Model Zoo
+## Technical Stack
 
-A collection of CoVT models on Hugging Face with benchmark performance:
+| Component | Technology |
+|---|---|
+| Base VLM | Qwen2.5-VL-7B-Instruct |
+| Visual Reasoning | CoVT (Chain-of-Visual-Thought) — Seg/Depth/DINO tokens |
+| Knowledge Integration | Dictionary-style KB with RAG-style prompting (no fine-tuning) |
+| Evaluation | GPT-4.1 / GPT-4.1-mini pairwise judging via OpenAI API |
+| Deduplication | Python `SequenceMatcher` (threshold: 0.85) |
+| Framework | PyTorch, Hugging Face Transformers |
 
-|Baseline| Segment | Depth | DINO | Edge | Parameters | CV-Bench | Link |
-|-----|--------|--------|------|------|------------|----------|------|
-|Qwen2.5-VL-7B-Instruct| ✔ |   |   |   | 7B (+1B) | 77.9    | 🤗 [HuggingFace](https://huggingface.co/Wakals/CoVT-7B-seg) |
-|Qwen2.5-VL-7B-Instruct|   | ✔ |   |   | 7B (+1B) | 78.7    | 🤗 [HuggingFace](https://huggingface.co/Wakals/CoVT-7B-depth) |
-|Qwen2.5-VL-7B-Instruct| ✔ | ✔ | ✔ |   | 7B (+1B) | **80.0**| 🤗 [HuggingFace](https://huggingface.co/Wakals/CoVT-7B-seg_depth_dino) |
-|Qwen2.5-VL-7B-Instruct| ✔ | ✔ | ✔ | ✔ | 7B (+1B) | 79.8    | 🤗 [HuggingFace](https://huggingface.co/Wakals/CoVT-7B-seg_depth_dino_edge) |
-|LLaVA-v1.5-13B        |   | ✔ |   |   | 13B (+1B)| 59.9    | 🤗 [HuggingFace](https://huggingface.co/Wakals/CoVT-LLaVA-13B-depth) |
+---
 
-> `+1B` denotes the parameters of the projection layer for decoding the visual thinking tokens. We don't nned these parameters during inference!
-
-## 🏖️ TODO
-
-- [x] Release our model weights on Hugging Face.
-- [x] Release the evaluation code.
-- [x] Release the Gradio demo code.
-- [x] Release the dataset.
-- [x] Release the training code.
-- [ ] Support huggingface demo.
-- [ ] Support more VLMs as the base models.
-
-## 🪪 License
-
-The majority of CoVT is licensed under the Apache License, however portions of the project are available under their own license terms: Qwen series, SAM, Depth Anything v2, and DINOv2 are licensed under Apache, PIDINet are licensed under their own license; If you later add other third party code, please keep this license info updated, and please let us know if that component is licensed under something other than Apache, CC-BY-NC, MIT, or CC0.
-
-## 📮 Contact
-
-For feedback, or collaboration opportunities, feel free to reach out!
-
-For general questions, feel free to drop us an email at ymk4474@gmail.com or xdwang@eecs.berkeley.edu.
-
-If you're running into code or implementation issues, the best way is to open an issue right here in the repo (highly recommended!) — chances are your question might help someone else too. 😊
-
-## Citation
-
-If you use this work in your research, please cite:
+## Repository Structure
 
 ```
+gradio/
+├── gen_scripts/      # Caption generation scripts (CoVT + baseline)
+└── eval_scripts/     # GPT-based pairwise evaluation scripts
+train/                # CoVT training code (forked from original repo)
+VLMEvalKit/           # Evaluation framework (forked)
+docs/                 # Experiment logs and analysis
+```
+
+---
+
+## What This Work Is (and Is Not)
+
+This is an independent undergraduate research project — not a paper submission or formal study. The contribution is primarily:
+
+- Systematic empirical investigation of where and why CoVT generalizes (or fails to) in a culturally underrepresented domain
+- A structured knowledge injection design that separates visual grounding from semantic naming
+- Concrete failure mode analysis (domain mismatch, catastrophic forgetting, caption convergence) with traceable causes
+- A 24,923-image training dataset with principled construction methodology
+
+The original CoVT framework was developed by Qin et al. (2025) at UC Berkeley. This work is an application and extension study built on their publicly released code and models.
+
+---
+
+## Original CoVT Paper
+
+```bibtex
 @article{qin2025chain,
   title={Chain-of-Visual-Thought: Teaching VLMs to See and Think Better with Continuous Visual Tokens},
   author={Qin, Yiming and Wei, Bomin and Ge, Jiaxin and Kallidromitis, Konstantinos and Fu, Stephanie and Darrell, Trevor and Wang, Xudong},
