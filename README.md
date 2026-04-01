@@ -61,22 +61,71 @@ CoVT introduces continuous visual tokens (segmentation, depth, DINO, edge) into 
 
 ### Experiment 1 — Baseline Validation
 
-**Setup**: 50 Korean cultural images across 32 categories. Blind pairwise comparison (CoVT-7B-seg_depth_dino vs. Qwen2.5-VL-7B baseline) using GPT-4.1-mini as judge with five evaluation criteria (visual grounding, hallucination absence, neutrality, detail, generalization).
+**Setup**: Controlled comparison between Qwen2.5-VL-7B (baseline) and CoVT-7B-seg_depth_dino across three evaluation tracks — **Track A** (General, n=50), **Track B** (Korean, n=40), **Track C** (Stress, n=5). GPT-4.1-mini served as blind judge using five criteria (grounding, neutrality, generalization, hallucination absence, detail) with random answer-order swapping to eliminate position bias.
 
-**Key design decision — prompt sensitivity**:
+**Progressive prompt design (P0–P3)**:
 
-| Prompt | Strategy | CoVT Win Rate (Korean) |
-|---|---|---|
-| P0 | No category info | ~0.50 |
-| P1 | Category name + description | 0.28 (**baseline wins 0.72**) |
-| P2 | Visual element extraction | — |
-| P3 | Structural verification (training-format-aligned) | **0.56** |
+| Prompt | Strategy |
+|---|---|
+| P0 | Baseline: describe overall scene structure and main objects in one clear sentence |
+| P1 | Elicit spatial/depth reasoning: describe precise front-to-back object relationships using internal visual reasoning |
+| P2 | Extend P1 with DINO feature reference: verify scene structure using perception DINO features |
+| P3 | Training-format-aligned: use segmentation, depth map, and perception features to verify scene structure |
 
-Prompt P1 degraded CoVT performance significantly, while P3 — designed to match CoVT's internal training format — recovered it. This established that **prompt design must account for model-internal reasoning mechanisms**, not just task objectives.
+**Table 2. Comparison of base and CoVT by prompt**:
+
+| Track | Prompt | Samples | Base Win Rate | CoVT Win Rate | Ties |
+|---|---|---|---|---|---|
+| A (General) | P0 | 50 | 0.54 | 0.46 | 0 |
+| A (General) | P1 | 50 | 0.72 | 0.28 | 0 |
+| A (General) | P2 | 50 | 0.52 | 0.48 | 0 |
+| **A (General)** | **P3** | **50** | **0.40** | **0.60** | **2** |
+| B (Korean) | P0 | 40 | 0.50 | 0.50 | 0 |
+| B (Korean) | P1 | 40 | 0.625 | 0.375 | 0 |
+| B (Korean) | P2 | 40 | 0.55 | 0.45 | 0 |
+| **B (Korean)** | **P3** | **40** | **0.4375** | **0.5625** | **1** |
+| C (Stress) | P0 | 5 | 0.80 | 0.20 | 0 |
+| C (Stress) | P1 | 5 | 0.80 | 0.20 | 0 |
+| C (Stress) | P2 | 5 | 1.00 | 0.00 | 0 |
+| **C (Stress)** | **P3** | **5** | **0.20** | **0.80** | **0** |
+
+**Key findings**:
+
+1. **Prompt Sensitivity**: Overly specific instructions degraded CoVT performance significantly — P1 (explicit spatial/depth reasoning) drove baseline win-rate up to **0.72** across Track A, suggesting that task-directive prompts suppress CoVT's latent visual reasoning pathway rather than activating it.
+
+2. **Effective Prompt Strategy (P3)**: Prompts aligned with CoVT's training-time format (segmentation / depth map / perception features) consistently outperformed the baseline across all three tracks — CoVT win-rate: **0.60** (General) / **0.5625** (Korean) / **0.80** (Stress).
+
+3. **CoVT Performance Validation (vs. original captions)**:
+
+**Table 3. Comparison between original dataset captions and CoVT captions (P3)**:
+
+| Track | Samples | Original Win Rate | CoVT Win Rate |
+|---|---|---|---|
+| A (General) | 50 | 0.04 | **0.96** |
+| B (Korean) | 45 | 0.00 | **1.00** |
+| C (Stress) | 5 | 0.40 | **0.60** |
+
+Properly activated CoVT (P3) substantially outperforms original dataset captions across all tracks (win-rate up to 0.96–1.0), validating CoVT as a reliable captioning backbone for fine-tuning data construction.
+
+> **Contribution**: Highlights the importance of aligning prompt design with model-internal reasoning mechanisms — prompt format, not prompt content specificity, is the key driver of robust multimodal generation with CoVT.
 
 ### Experiment 2A — Extending to Cultural Context (without KB)
 
-Extended prompt space to P0–P6 (adding culturally framed instructions). P6 ("Describe the visual appearance and cultural context...") achieved CoVT win-rate of **0.60**.
+Extended prompt space to P0–P6 on 50 Korean cultural images, adding culturally framed instructions to probe whether CoVT's visual grounding could generalize to domain-specific captioning without external knowledge.
+
+**Table 1. Comparison of base and CoVT under prompts** (GPT-4.1-mini judge):
+
+| Prompt | Samples | Base Win Rate | CoVT Win Rate | Ties |
+|---|---|---|---|---|
+| P0 | 50 | 0.69 | 0.31 | 7 |
+| P1 | 50 | 0.70 | 0.30 | 0 |
+| P2 | 50 | 0.62 | 0.38 | 4 |
+| P3 | 50 | 0.56 | 0.44 | 0 |
+| P4 | 50 | 0.51 | 0.49 | 3 |
+| P5 | 50 | 0.50 | 0.50 | 6 |
+| **P6** | **50** | **0.40** | **0.60** | **0** |
+
+P6 ("Describe the visual appearance and cultural context of '{category}' in exactly one sentence.") achieved the best CoVT win-rate of **0.60**, showing progressive improvement from P0 to P6 as prompts shifted toward visual-first, culturally grounded description.
 
 Analysis of 30 CoVT-winning captions:
 
