@@ -68,7 +68,7 @@ CoVT introduces continuous visual tokens (segmentation, depth, DINO, edge) into 
 | Prompt | Strategy |
 |---|---|
 | P0 | Baseline: describe overall scene structure and main objects in one clear sentence |
-| P1 | Elicit spatial/depth reasoning: describe precise front-to-back object relationships using internal visual reasoning |
+| P1 | Explicit spatial/depth reasoning: describe precise front-to-back object relationships using internal visual reasoning |
 | P2 | Extend P1 with DINO feature reference: verify scene structure using perception DINO features |
 | P3 | Training-format-aligned: use segmentation, depth map, and perception features to verify scene structure |
 
